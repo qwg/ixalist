@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -27,35 +28,43 @@ func main() {
 	if err != nil {
 		fmt.Print("url scarapping failed")
 	}
-	fmt.Printf("カード番号,名前,コスト,槍\n")
-	doc.Find(".parameta_area").Each(func(_ int, s *goquery.Selection) {
-		yari := "E"
-		if s.Find(".yari.lv_d").Size() == 1 {
-			yari = "D"
-		} else if s.Find(".yari.lv_c").Size() == 1 {
-			yari = "C"
-		} else if s.Find(".yari.lv_b").Size() == 1 {
-			yari = "B"
-		} else if s.Find(".yari.lv_a").Size() == 1 {
-			yari = "A"
-		} else if s.Find(".yari.lv_s").Size() == 1 {
-			yari = "S"
-		} else if s.Find(".yari.lv_ss").Size() == 1 {
-			yari = "SS"
-		} else if s.Find(".yari.lv_sss").Size() == 1 {
-			yari = "SSS"
+	fmt.Printf("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,兵,指揮力,攻(槍)\n")
+	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
+		if len(s.Find(".ig_card_cost").Text()) == 0 {
+			return
 		}
-		fmt.Printf("%s,%s,%s,%s\n",
+		cost, _ := strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
+		yari := tekisei(s, "yari")
+		kiba := tekisei(s, "kiba")
+		yumi := tekisei(s, "yumi")
+		heiki := tekisei(s, "heiki")
+		shubetsu := shubetsu(s)
+		fmt.Printf("%s,%s,%s,%.1f,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			s.Find(".ig_card_cardno").Text(),
 			s.Find(".ig_card_name").Text(),
-			s.Find(".ig_card_cost").Text(), yari)
+			shubetsu,
+			cost, yari, kiba, yumi, heiki,
+			s.Find(".ig_card_status_att").Text(),
+			s.Find(".ig_card_status_def").Text(),
+			s.Find(".ig_card_status_int").Text(),
+			strings.Split(s.Find(".commandsol_no").Text(), "/")[1])
 	})
 }
 
+func shubetsu(s *goquery.Selection) string {
+	kind := []string{"0", "将", "剣", "忍", "文", "姫", "6", "7"}
+	for i, t := range kind {
+		if s.Find(".jobtype_"+strconv.Itoa(i)).Size() == 1 {
+			return t
+		}
+	}
+	return "?"
+}
+
 func tekisei(s *goquery.Selection, kind string) string {
-	level := []string{"sss", "ss", "s", "a", "b", "c", "d", "e"}
+	level := []string{"sss", "ss", "s", "a", "b", "c", "d", "e", "f"}
 	for _, l := range level {
-		if s.Find("."+kind+".lv_"+l) == 1 {
+		if s.Find("."+kind+".lv_"+l).Size() == 1 {
 			return strings.ToUpper(l)
 		}
 	}
