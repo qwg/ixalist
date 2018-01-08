@@ -59,15 +59,11 @@ type attackKind struct {
 }
 
 type hei struct {
-	name string
-	kind string
+	att     int
+	attCost int
+	def     int
+	defCost int
 }
-
-/*
-const heilist []hei = {
-	{"長槍", "yari"}
-}
-*/
 
 //Busho ...
 type Busho struct {
@@ -83,6 +79,7 @@ type Busho struct {
 	kiba     attackKind
 	yumi     attackKind
 	heiki    attackKind
+	nagayari hei
 }
 
 //NewBusho ...
@@ -109,6 +106,22 @@ func (b *Busho) init(s *goquery.Selection) {
 	tekisei(s, "kiba", &b.kiba)
 	tekisei(s, "yumi", &b.yumi)
 	tekisei(s, "heiki", &b.heiki)
+
+	//長槍 槍/18/18
+	b.nagayari.set(b, b.yari.hosei, 18, 18)
+	/*
+		b.nagayari.att = (b.att + b.comno*18) * b.yari.hosei / 100
+		b.nagayari.attCost = int(float64(b.nagayari.att) / b.cost)
+		b.nagayari.def = (b.def + b.comno*18) * b.yari.hosei / 100
+		b.nagayari.defCost = int(float64(b.nagayari.def) / b.cost)
+	*/
+}
+
+func (h *hei) set(b *Busho, hosei int, att int, def int) {
+	h.att = (b.att + b.comno*att) * hosei / 100
+	h.attCost = int(float64(h.att) / b.cost)
+	h.def = (b.def + b.comno*def) * hosei / 100
+	h.defCost = int(float64(h.def) / b.cost)
 }
 
 func tekisei(s *goquery.Selection, kind string, k *attackKind) {
