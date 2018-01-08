@@ -30,24 +30,16 @@ func main() {
 	}
 	fmt.Printf("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,兵,指揮力,攻(槍)\n")
 	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
-		if len(s.Find(".ig_card_cost").Text()) == 0 {
-			return
-		}
-		cost, _ := strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
-		yari := tekisei(s, "yari")
-		kiba := tekisei(s, "kiba")
-		yumi := tekisei(s, "yumi")
-		heiki := tekisei(s, "heiki")
-		shubetsu := shubetsu(s)
-		fmt.Printf("%s,%s,%s,%.1f,%s,%s,%s,%s,%s,%s,%s,%s\n",
-			s.Find(".ig_card_cardno").Text(),
-			s.Find(".ig_card_name").Text(),
-			shubetsu,
-			cost, yari, kiba, yumi, heiki,
-			s.Find(".ig_card_status_att").Text(),
-			s.Find(".ig_card_status_def").Text(),
-			s.Find(".ig_card_status_int").Text(),
-			strings.Split(s.Find(".commandsol_no").Text(), "/")[1])
+		b := NewBusho(s)
+		fmt.Println(b)
+		/*
+
+			fmt.Printf("%s,%s,%s,%.1f,%s,%s,%s,%s,%s,%s,%s,%s\n",
+				s.Find(".ig_card_status_att").Text(),
+				s.Find(".ig_card_status_def").Text(),
+				s.Find(".ig_card_status_int").Text(),
+				strings.Split(s.Find(".commandsol_no").Text(), "/")[1])
+		*/
 	})
 }
 
@@ -61,12 +53,71 @@ func shubetsu(s *goquery.Selection) string {
 	return "?"
 }
 
-func tekisei(s *goquery.Selection, kind string) string {
+type attackKind struct {
+	tekisei string
+	hosei   int
+}
+
+type hei struct {
+	name string
+	kind string
+}
+
+/*
+const heilist []hei = {
+	{"長槍", "yari"}
+}
+*/
+
+//Busho ...
+type Busho struct {
+	no       string
+	name     string
+	cost     float64
+	shubetsu string
+	att      int
+	def      int
+	skill    float64
+	comno    int
+	yari     attackKind
+	kiba     attackKind
+	yumi     attackKind
+	heiki    attackKind
+}
+
+//NewBusho ...
+func NewBusho(s *goquery.Selection) *Busho {
+	var Busho Busho
+	Busho.init(s)
+	return &Busho
+}
+
+func (b *Busho) init(s *goquery.Selection) {
+	if len(s.Find(".ig_card_cost").Text()) == 0 {
+		b.cost = -1
+	} else {
+		b.cost, _ = strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
+	}
+	b.no = s.Find(".ig_card_cardno").Text()
+	b.name = s.Find(".ig_card_name").Text()
+	b.shubetsu = shubetsu(s)
+	b.att, _ = strconv.Atoi(s.Find(".ig_card_status_att").Text())
+	b.def, _ = strconv.Atoi(s.Find(".ig_card_status_def").Text())
+	b.skill, _ = strconv.ParseFloat(s.Find(".ig_card_status_int").Text(), 64)
+	b.comno, _ = strconv.Atoi(strings.Split(s.Find(".commandsol_no").Text(), "/")[1])
+	tekisei(s, "yari", &b.yari)
+	tekisei(s, "kiba", &b.kiba)
+	tekisei(s, "yumi", &b.yumi)
+	tekisei(s, "heiki", &b.heiki)
+}
+
+func tekisei(s *goquery.Selection, kind string, k *attackKind) {
 	level := []string{"sss", "ss", "s", "a", "b", "c", "d", "e", "f"}
-	for _, l := range level {
+	for i, l := range level {
 		if s.Find("."+kind+".lv_"+l).Size() == 1 {
-			return strings.ToUpper(l)
+			k.tekisei = strings.ToUpper(l)
+			k.hosei = 120 - i*5
+			return
 		}
 	}
-	return ""
 }
