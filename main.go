@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 )
 
 // 兵士編成を表示
@@ -17,7 +19,7 @@ import (
 // 保存したファイルを引数で指定
 func main() {
 	var filename string
-	flag.StringVar(&filename, "string", "C:\\data\\a.html", "ixa listfile")
+	flag.StringVar(&filename, "string", "C:\\data\\b.html", "ixa listfile")
 	fileInfos, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -28,23 +30,31 @@ func main() {
 	if err != nil {
 		fmt.Print("url scarapping failed")
 	}
-	fmt.Printf("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,兵,指揮力,攻(槍)\n")
+	fmt.Printf("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力,長槍(総),長槍(コスト比),長弓(総),長弓(コスト比),精鋭騎馬(総),精鋭騎馬(コスト比)\n")
 	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
 		b := NewBusho(s)
-		fmt.Println(b)
-		/*
-
-			fmt.Printf("%s,%s,%s,%.1f,%s,%s,%s,%s,%s,%s,%s,%s\n",
-				s.Find(".ig_card_status_att").Text(),
-				s.Find(".ig_card_status_def").Text(),
-				s.Find(".ig_card_status_int").Text(),
-				strings.Split(s.Find(".commandsol_no").Text(), "/")[1])
-		*/
+		//fmt.Println(b)
+		max_shubetsu, max_cost := max(b)
+		str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f,%d,%d,%d,%d,%d,%d,%s,%d\n",
+			b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
+			b.att, b.def, b.skill, b.nagayari.def, b.nagayari.defCost,
+			b.nagayumi.def, b.nagayumi.defCost, b.seieikiba.def, b.seieikiba.defCost, max_shubetsu, max_cost)
+		fmt.Print(utf82sjis(str))
+		//fmt.Print(str)
 	})
 }
 
+func max(b *Busho) (string, int) {
+	if b.nagayumi.defCost > b.seieikiba.defCost && b.nagayumi.defCost > b.nagayari.defCost {
+		return "長弓", b.nagayumi.defCost
+	} else if b.seieikiba.defCost > b.nagayumi.defCost && b.seieikiba.defCost > b.nagayari.defCost {
+		return "精鋭騎馬", b.seieikiba.defCost
+	}
+	return "長槍", b.nagayari.defCost
+}
+
 func shubetsu(s *goquery.Selection) string {
-	kind := []string{"0", "将", "剣", "忍", "文", "姫", "6", "7"}
+	kind := []string{"0", "将", "剣", "忍", "文", "姫", "天", "童"}
 	for i, t := range kind {
 		if s.Find(".jobtype_"+strconv.Itoa(i)).Size() == 1 {
 			return t
@@ -67,19 +77,21 @@ type hei struct {
 
 //Busho ...
 type Busho struct {
-	no       string
-	name     string
-	cost     float64
-	shubetsu string
-	att      int
-	def      int
-	skill    float64
-	comno    int
-	yari     attackKind
-	kiba     attackKind
-	yumi     attackKind
-	heiki    attackKind
-	nagayari hei
+	no        string
+	name      string
+	cost      float64
+	shubetsu  string
+	att       int
+	def       int
+	skill     float64
+	comno     int
+	yari      attackKind
+	kiba      attackKind
+	yumi      attackKind
+	heiki     attackKind
+	nagayari  hei
+	nagayumi  hei
+	seieikiba hei
 }
 
 //NewBusho ...
@@ -88,7 +100,17 @@ func NewBusho(s *goquery.Selection) *Busho {
 	Busho.init(s)
 	return &Busho
 }
-
+func sjis2utf8(str string) (string, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(str), japanese.ShiftJIS.NewDecoder()))
+	if err != nil {
+		return "", err
+	}
+	return string(ret), err
+}
+func utf82sjis(str string) string {
+	ret, _ := ioutil.ReadAll(transform.NewReader(strings.NewReader(str), japanese.ShiftJIS.NewEncoder()))
+	return string(ret)
+}
 func (b *Busho) init(s *goquery.Selection) {
 	if len(s.Find(".ig_card_cost").Text()) == 0 {
 		b.cost = -1
@@ -96,7 +118,7 @@ func (b *Busho) init(s *goquery.Selection) {
 		b.cost, _ = strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
 	}
 	b.no = s.Find(".ig_card_cardno").Text()
-	b.name = s.Find(".ig_card_name").Text()
+	b.name, _ = sjis2utf8(s.Find(".ig_card_name").Text())
 	b.shubetsu = shubetsu(s)
 	b.att, _ = strconv.Atoi(s.Find(".ig_card_status_att").Text())
 	b.def, _ = strconv.Atoi(s.Find(".ig_card_status_def").Text())
@@ -107,21 +129,20 @@ func (b *Busho) init(s *goquery.Selection) {
 	tekisei(s, "yumi", &b.yumi)
 	tekisei(s, "heiki", &b.heiki)
 
-	//長槍 槍/18/18
-	b.nagayari.set(b, b.yari.hosei, 18, 18)
-	/*
-		b.nagayari.att = (b.att + b.comno*18) * b.yari.hosei / 100
-		b.nagayari.attCost = int(float64(b.nagayari.att) / b.cost)
-		b.nagayari.def = (b.def + b.comno*18) * b.yari.hosei / 100
-		b.nagayari.defCost = int(float64(b.nagayari.def) / b.cost)
-	*/
+	b.nagayari.set(b, b.yari.hosei, 18, 18)  //長槍 槍/18/18
+	b.nagayumi.set(b, b.yumi.hosei, 17, 19)  //長弓 弓/17/19
+	b.seieikiba.set(b, b.kiba.hosei, 19, 16) //精鋭騎馬 騎/19/16
 }
 
 func (h *hei) set(b *Busho, hosei int, att int, def int) {
+	cost := b.cost
+	if cost == 0 {
+		cost = 0.1
+	}
 	h.att = (b.att + b.comno*att) * hosei / 100
-	h.attCost = int(float64(h.att) / b.cost)
+	h.attCost = int(float64(h.att) / cost)
 	h.def = (b.def + b.comno*def) * hosei / 100
-	h.defCost = int(float64(h.def) / b.cost)
+	h.defCost = int(float64(h.def) / cost)
 }
 
 func tekisei(s *goquery.Selection, kind string, k *attackKind) {
