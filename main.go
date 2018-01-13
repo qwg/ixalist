@@ -19,7 +19,8 @@ import (
 // 保存したファイルを引数で指定
 func main() {
 	var filename string
-	flag.StringVar(&filename, "string", "C:\\data\\b.html", "ixa listfile")
+	flag.StringVar(&filename, "f", "C:\\data\\b.html", "ixa listfile")
+	flag.Parse()
 	fileInfos, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -30,7 +31,7 @@ func main() {
 	if err != nil {
 		fmt.Print("url scarapping failed")
 	}
-	fmt.Printf("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力,長槍(総),長槍(コスト比),長弓(総),長弓(コスト比),精鋭騎馬(総),精鋭騎馬(コスト比)\n")
+	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力,長槍(総),長槍(コスト比),長弓(総),長弓(コスト比),精鋭騎馬(総),精鋭騎馬(コスト比)\n"))
 	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
 		b := NewBusho(s)
 		//fmt.Println(b)
@@ -118,7 +119,8 @@ func (b *Busho) init(s *goquery.Selection) {
 		b.cost, _ = strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
 	}
 	b.no = s.Find(".ig_card_cardno").Text()
-	b.name, _ = sjis2utf8(s.Find(".ig_card_name").Text())
+	//b.name, _ = sjis2utf8(s.Find(".ig_card_name").Text())
+	b.name = s.Find(".ig_card_name").Text()
 	b.shubetsu = shubetsu(s)
 	b.att, _ = strconv.Atoi(s.Find(".ig_card_status_att").Text())
 	b.def, _ = strconv.Atoi(s.Find(".ig_card_status_def").Text())
