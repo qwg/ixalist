@@ -41,12 +41,14 @@ func main() {
 		{"弓騎馬", "弓", "馬", 21, 23},
 	}
 
-	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力\n"))
+	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,スキル,指揮力,攻撃種,攻撃力,防御種,防御力,コスト比\n"))
 	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
 		b := NewBusho(s, heiList)
-		str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f\n",
+		maxAttackName, maxAttackScore := maxAttack(b)
+		maxDefName, maxDef, maxDefCost := maxDef(b)
+		str := fmt.Sprintf("%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v\n",
 			b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
-			b.att, b.def, b.skill)
+			b.att, b.def, b.skill, b.comno, maxAttackName, maxAttackScore, maxDefName, maxDef, maxDefCost)
 		fmt.Print(utf82sjis(str))
 		//fmt.Print(str)
 		/*
@@ -61,16 +63,24 @@ func main() {
 	})
 }
 
-func max(b *Busho) (string, int) {
-	/*
-		if b.nagayumi.defCost > b.seieikiba.defCost && b.nagayumi.defCost > b.nagayari.defCost {
-			return "長弓", b.nagayumi.defCost
-		} else if b.seieikiba.defCost > b.nagayumi.defCost && b.seieikiba.defCost > b.nagayari.defCost {
-			return "精鋭騎馬", b.seieikiba.defCost
+func maxAttack(b *Busho) (name string, att int) {
+	for _, tekisei := range b.tekisei {
+		if tekisei.att > att {
+			att = tekisei.att
+			name = tekisei.name
 		}
-		return "長槍", b.nagayari.defCost
-	*/
-	return "", 0
+	}
+	return name, att
+}
+func maxDef(b *Busho) (name string, def int, cost int) {
+	for _, tekisei := range b.tekisei {
+		if tekisei.def > def {
+			def = tekisei.def
+			name = tekisei.name
+			cost = tekisei.defCost
+		}
+	}
+	return
 }
 
 func shubetsu(s *goquery.Selection) string {
