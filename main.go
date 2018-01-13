@@ -31,27 +31,46 @@ func main() {
 	if err != nil {
 		fmt.Print("url scarapping failed")
 	}
-	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力,長槍(総),長槍(コスト比),長弓(総),長弓(コスト比),精鋭騎馬(総),精鋭騎馬(コスト比)\n"))
+
+	heiList := []Hei{
+		{"長槍", "槍", "", 18, 18},
+		{"長弓", "弓", "", 17, 19},
+		{"精鋭騎馬", "馬", "", 19, 16},
+		{"赤備え", "馬", "槍", 23, 20},
+		{"武士", "槍", "弓", 22, 22},
+		{"弓騎馬", "弓", "馬", 21, 23},
+	}
+
+	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,指揮力\n"))
 	doc.Find(".card_detail_area").Each(func(_ int, s *goquery.Selection) {
-		b := NewBusho(s)
-		//fmt.Println(b)
-		max_shubetsu, max_cost := max(b)
-		str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f,%d,%d,%d,%d,%d,%d,%s,%d\n",
+		b := NewBusho(s, heiList)
+		str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f\n",
 			b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
-			b.att, b.def, b.skill, b.nagayari.def, b.nagayari.defCost,
-			b.nagayumi.def, b.nagayumi.defCost, b.seieikiba.def, b.seieikiba.defCost, max_shubetsu, max_cost)
+			b.att, b.def, b.skill)
 		fmt.Print(utf82sjis(str))
 		//fmt.Print(str)
+		/*
+			max_shubetsu, max_cost := max(b)
+			str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f,%d,%d,%d,%d,%d,%d,%s,%d\n",
+				b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
+				b.att, b.def, b.skill, b.nagayari.def, b.nagayari.defCost,
+				b.nagayumi.def, b.nagayumi.defCost, b.seieikiba.def, b.seieikiba.defCost, max_shubetsu, max_cost)
+			fmt.Print(utf82sjis(str))
+			//fmt.Print(str)
+		*/
 	})
 }
 
 func max(b *Busho) (string, int) {
-	if b.nagayumi.defCost > b.seieikiba.defCost && b.nagayumi.defCost > b.nagayari.defCost {
-		return "長弓", b.nagayumi.defCost
-	} else if b.seieikiba.defCost > b.nagayumi.defCost && b.seieikiba.defCost > b.nagayari.defCost {
-		return "精鋭騎馬", b.seieikiba.defCost
-	}
-	return "長槍", b.nagayari.defCost
+	/*
+		if b.nagayumi.defCost > b.seieikiba.defCost && b.nagayumi.defCost > b.nagayari.defCost {
+			return "長弓", b.nagayumi.defCost
+		} else if b.seieikiba.defCost > b.nagayumi.defCost && b.seieikiba.defCost > b.nagayari.defCost {
+			return "精鋭騎馬", b.seieikiba.defCost
+		}
+		return "長槍", b.nagayari.defCost
+	*/
+	return "", 0
 }
 
 func shubetsu(s *goquery.Selection) string {
@@ -69,7 +88,17 @@ type attackKind struct {
 	hosei   int
 }
 
-type hei struct {
+//Hei 長槍,長弓,精鋭騎馬
+type Hei struct {
+	name        string
+	mainTekisei string
+	subTekisei  string
+	att         int
+	def         int
+}
+
+type heiTekisei struct {
+	name    string
 	att     int
 	attCost int
 	def     int
@@ -78,27 +107,29 @@ type hei struct {
 
 //Busho ...
 type Busho struct {
-	no        string
-	name      string
-	cost      float64
-	shubetsu  string
-	att       int
-	def       int
-	skill     float64
-	comno     int
-	yari      attackKind
-	kiba      attackKind
-	yumi      attackKind
-	heiki     attackKind
-	nagayari  hei
-	nagayumi  hei
-	seieikiba hei
+	no       string
+	name     string
+	cost     float64
+	shubetsu string
+	att      int
+	def      int
+	skill    float64
+	comno    int
+	yari     attackKind
+	kiba     attackKind
+	yumi     attackKind
+	heiki    attackKind
+	tekisei  []heiTekisei
+	//heilist  []hei
+	//nagayari  hei
+	//nagayumi  hei
+	//seieikiba hei
 }
 
 //NewBusho ...
-func NewBusho(s *goquery.Selection) *Busho {
+func NewBusho(s *goquery.Selection, h []Hei) *Busho {
 	var Busho Busho
-	Busho.init(s)
+	Busho.init(s, h)
 	return &Busho
 }
 func sjis2utf8(str string) (string, error) {
@@ -112,9 +143,9 @@ func utf82sjis(str string) string {
 	ret, _ := ioutil.ReadAll(transform.NewReader(strings.NewReader(str), japanese.ShiftJIS.NewEncoder()))
 	return string(ret)
 }
-func (b *Busho) init(s *goquery.Selection) {
+func (b *Busho) init(s *goquery.Selection, H []Hei) {
 	if len(s.Find(".ig_card_cost").Text()) == 0 {
-		b.cost = -1
+		b.cost = 193
 	} else {
 		b.cost, _ = strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
 	}
@@ -130,20 +161,43 @@ func (b *Busho) init(s *goquery.Selection) {
 	tekisei(s, "kiba", &b.kiba)
 	tekisei(s, "yumi", &b.yumi)
 	tekisei(s, "heiki", &b.heiki)
-
-	b.nagayari.set(b, b.yari.hosei, 18, 18)  //長槍 槍/18/18
-	b.nagayumi.set(b, b.yumi.hosei, 17, 19)  //長弓 弓/17/19
-	b.seieikiba.set(b, b.kiba.hosei, 19, 16) //精鋭騎馬 騎/19/16
+	for i := 0; i < len(H); i++ {
+		var h heiTekisei
+		h.set(b, &H[i], b.yari.hosei, b.kiba.hosei, b.yumi.hosei, b.heiki.hosei)
+		b.tekisei = append(b.tekisei, h)
+	}
 }
 
-func (h *hei) set(b *Busho, hosei int, att int, def int) {
+func (h *heiTekisei) set(b *Busho, H *Hei, hoseiYari int, hoseiKiba int, hoseiYumi int, hoseiHeiki int) {
 	cost := b.cost
 	if cost == 0 {
 		cost = 0.1
 	}
-	h.att = (b.att + b.comno*att) * hosei / 100
+	h.name = H.name
+	var hosei int
+	switch H.mainTekisei {
+	case "馬":
+		hosei = hoseiKiba
+	case "槍":
+		hosei = hoseiYari
+	case "弓":
+		hosei = hoseiYumi
+	default:
+		hosei = hoseiHeiki
+	}
+	switch H.subTekisei {
+	case "馬":
+		hosei = (hosei + hoseiKiba) / 2
+	case "槍":
+		hosei = (hosei + hoseiYari) / 2
+	case "弓":
+		hosei = (hosei + hoseiYumi) / 2
+	case "器":
+		hosei = (hosei + hoseiHeiki) / 2
+	}
+	h.att = (b.att + b.comno*H.att) * hosei / 100
 	h.attCost = int(float64(h.att) / cost)
-	h.def = (b.def + b.comno*def) * hosei / 100
+	h.def = (b.def + b.comno*H.def) * hosei / 100
 	h.defCost = int(float64(h.def) / cost)
 }
 
