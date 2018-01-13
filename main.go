@@ -13,9 +13,7 @@ import (
 )
 
 // 兵士編成を表示
-// ソースを保存
-// chromeで表示
-// 表示したものを保存
+// webページを保存
 // 保存したファイルを引数で指定
 func main() {
 	var filename string
@@ -39,6 +37,7 @@ func main() {
 		{"赤備え", "馬", "槍", 23, 20},
 		{"武士", "槍", "弓", 22, 22},
 		{"弓騎馬", "弓", "馬", 21, 23},
+		{"穴太衆", "器", "", 16, 21},
 	}
 
 	fmt.Printf(utf82sjis("カード番号,名前,種別,コスト,槍,馬,弓,器,攻,防,スキル,指揮力,攻撃種,攻撃力,防御種,防御力,コスト比\n"))
@@ -50,16 +49,6 @@ func main() {
 			b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
 			b.att, b.def, b.skill, b.comno, maxAttackName, maxAttackScore, maxDefName, maxDef, maxDefCost)
 		fmt.Print(utf82sjis(str))
-		//fmt.Print(str)
-		/*
-			max_shubetsu, max_cost := max(b)
-			str := fmt.Sprintf("%s,%s,%s,%.1f,%s,%s,%s,%s,%d,%d,%.0f,%d,%d,%d,%d,%d,%d,%s,%d\n",
-				b.no, b.name, b.shubetsu, b.cost, b.yari.tekisei, b.kiba.tekisei, b.yumi.tekisei, b.heiki.tekisei,
-				b.att, b.def, b.skill, b.nagayari.def, b.nagayari.defCost,
-				b.nagayumi.def, b.nagayumi.defCost, b.seieikiba.def, b.seieikiba.defCost, max_shubetsu, max_cost)
-			fmt.Print(utf82sjis(str))
-			//fmt.Print(str)
-		*/
 	})
 }
 
@@ -130,10 +119,6 @@ type Busho struct {
 	yumi     attackKind
 	heiki    attackKind
 	tekisei  []heiTekisei
-	//heilist  []hei
-	//nagayari  hei
-	//nagayumi  hei
-	//seieikiba hei
 }
 
 //NewBusho ...
@@ -160,7 +145,6 @@ func (b *Busho) init(s *goquery.Selection, H []Hei) {
 		b.cost, _ = strconv.ParseFloat(s.Find(".ig_card_cost").Text(), 64)
 	}
 	b.no = s.Find(".ig_card_cardno").Text()
-	//b.name, _ = sjis2utf8(s.Find(".ig_card_name").Text())
 	b.name = s.Find(".ig_card_name").Text()
 	b.shubetsu = shubetsu(s)
 	b.att, _ = strconv.Atoi(s.Find(".ig_card_status_att").Text())
